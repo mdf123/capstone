@@ -1,0 +1,29 @@
+---
+title: "Format_test"
+author: "Hans M. Rupp"
+date: "28 6 2022"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Y~u,i~ = $\mu + \epsilon _{u,i}$
+
+## R Markdown
+
+### Subscript
+Y~u,i~
+
+### Superscript
+x^2^
+
+$\hat{Y}$
+
+Inline Mathematics $\sum_{n=1}^{10} n^2$  
+Formula $$\sum_{n=1}^{10} n^2$$
+
+$\sqrt{x}$
+
+$\sqrt{\frac{1}{N}\sum_{u,i} (\hat{y}_{u,i}-y_{u,i})^2}$

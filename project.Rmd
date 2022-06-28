@@ -103,9 +103,14 @@ edx %>% group_by(year) %>% summarise(avg_rating = mean(rating)) %>% ggplot(aes(x
 # Matrix Factorization
 We will use Matrix Factorization to build a model to predict movie ratings
 
+movie _i_
+user _u_
+
 
 ## RMSE
 The Root Mean Square Error will be used as the Loss function
+
+RMSE = $\sqrt{\frac{1}{N}\sum_{u,i} (\hat{y}_{u,i}-y_{u,i})^2}$
 ```{r}
 
 RMSE <- function(true_ratings, predicted_ratings){
@@ -114,6 +119,8 @@ RMSE <- function(true_ratings, predicted_ratings){
 ```
 
 ## Naive model: simply using the mean ratings
+This model assumes the same rating $\mu$ for all movies i and users u with an error $\epsilon _{u,i}$  
+Y~u,i~ = $\mu + \epsilon _{u,i}$
 
 ```{r}
 mu_rating <- mean(edx$rating)
