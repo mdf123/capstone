@@ -49,3 +49,14 @@ validation <- validation %>% mutate(year=as.numeric(str_sub(title, start=-5, end
 head(validation)
 
 edx %>% group_by(year) %>% summarise(avg_rating = mean(rating)) %>% ggplot(aes(x=year, y=avg_rating)) + geom_point() + geom_smooth()
+
+RMSE <- function(true_ratings, predicted_ratings){
+  sqrt(mean((true_ratings - predicted_ratings)^2))
+}
+
+mu_rating <- mean(edx$rating)
+rmse_mean <- RMSE(edx$rating, mu_rating)
+rmse_mean
+
+models <- tibble(model="Mean", rmse=rmse_mean)
+models
