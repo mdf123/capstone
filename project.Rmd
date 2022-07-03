@@ -112,12 +112,13 @@ We will use Matrix Factorization to build a model to predict movie ratings
 
 movie _i_
 user _u_
+year _y_
 
 
 ## RMSE
 The Root Mean Square Error will be used as the Loss function
 
-RMSE = $\sqrt{\frac{1}{N}\sum_{u,i} (\hat{y}_{u,i}-y_{u,i})^2}$
+RMSE = $\sqrt{\frac{1}{N}\sum_{u,i,y} (\hat{y}_{u,i,y}-y_{u,i,y})^2}$
 ```{r}
 
 RMSE <- function(true_ratings, predicted_ratings){
@@ -226,3 +227,39 @@ models
 ```
 The RMSE has improved to `r models$rmse[3]` 
 
+## Effect of the release year
+
+We can add the term b~y~ for the average rating for movies released in year y
+
+$Y_{u,i} = \mu + b_{i} + b_{u} + b_{y} + \epsilon_{u,i}$
+
+Calculate the average rating b_u for each movie minus the overall average rating mu_rating and b_i and b_u:
+
+```{r}
+year_avg <- edx_movies_users %>% group_by(year) %>% summarise(b_y = mean(rating - mu_rating - b_i - b_u))
+
+```
+Plot the effect of the release year b_y
+
+```{r}
+year_avg %>% ggplot(aes(x=b_y)) + geom_histogram()
+```
+Join the year_avg data.frame to the edx_movies_users (training) and validation_movies_users set:
+
+```{r}
+edx_movies_users_years <- edx_movies_users %>% left_join(year_avg, by="year")
+validation_movies_users_years <- validation_movies_users %>% left_join(year_avg, by="year")
+```
+Calculating the predicted ratings $Y_{u,i} = \mu + b_{i} + b_{u} + b_{y}$
+
+```{r}
+predicted_ratings_movies_users_years <- mu_rating + validation_movies_users_years$b_i + validation_movies_users_years$b_u + validation_movies_users_years$b_y
+
+rmse_movies_users_years <- RMSE(predicted_ratings_movies_users_years, validation$rating)
+rmse_movies_users_years
+
+models <- rbind(models, c("movies users years", rmse_movies_users_years))
+models
+```
+
+The RMSE has only marginally improved to `r models$rmse[4]`

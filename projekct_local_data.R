@@ -104,3 +104,19 @@ rmse_movies_users
 
 models <- rbind(models, c("movies users", rmse_movies_users))
 models
+
+#year effect
+
+year_avg <- edx_movies_users %>% group_by(year) %>% summarise(b_y = mean(rating - mu_rating - b_i - b_u))
+
+year_avg %>% ggplot(aes(x=b_y)) + geom_histogram()
+
+edx_movies_users_years <- edx_movies_users %>% left_join(year_avg, by="year")
+validation_movies_users_years <- validation_movies_users %>% left_join(year_avg, by="year")
+
+predicted_ratings_movies_users_years <- mu_rating + validation_movies_users_years$b_i + validation_movies_users_years$b_u + validation_movies_users_years$b_y
+rmse_movies_users_years <- RMSE(predicted_ratings_movies_users_years, validation$rating)
+rmse_movies_users_years
+
+models <- rbind(models, c("movies users years", rmse_movies_users_years))
+models
