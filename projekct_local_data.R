@@ -1,7 +1,8 @@
-
+rm(list=ls())
 library(tidyverse)
 library(caret)
 library(gridExtra)
+options(digits=3)
 
 load(file="data/edx")
 load(file="data/validation")
@@ -55,8 +56,31 @@ RMSE <- function(true_ratings, predicted_ratings){
 }
 
 mu_rating <- mean(edx$rating)
-rmse_mean <- RMSE(edx$rating, mu_rating)
+rmse_mean <- RMSE(validation$rating, mu_rating)
 rmse_mean
 
 models <- tibble(model="Mean", rmse=rmse_mean)
 models
+
+movie_avgs <- edx %>% group_by(movieId) %>% summarise(b_i = mean(rating - mu_rating))
+
+movie_avgs %>% ggplot(aes(b_i)) + geom_histogram(bins = 10)
+
+
+
+head(edx)
+
+edx_movies <- edx %>% left_join(movie_avgs, by="movieId")
+
+head(edx_movies)
+
+validation_movies <- validation %>% left_join(movie_avgs, by="movieId")
+head(validation_movies)
+
+predicted_ratings_movies <- mu_rating + validation_movies$b_i
+
+
+rmse_movies <- RMSE(predicted_ratings_movies, validation$rating)
+models <- rbind(models, c("movies", rmse_movies))
+models
+

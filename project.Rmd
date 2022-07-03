@@ -124,7 +124,7 @@ Y~u,i~ = $\mu + \epsilon _{u,i}$
 
 ```{r}
 mu_rating <- mean(edx$rating)
-rmse_mean <- RMSE(edx$rating, mu_rating)
+rmse_mean <- RMSE(validation$rating, mu_rating)
 rmse_mean
 
 ```
@@ -136,5 +136,52 @@ We build a table of the RMSEs for the different models:
 models <- tibble(model="Mean", rmse=rmse_mean)
 ```
 
+## Effect of different movies
+As we saw above different movies are rated differently.
+
+We can add the term b~i~ for the average ranking for movie i
+
+$Y_{u,i} = \mu + b_{i} + \epsilon_{u,i}$
+
+Theoretically we could calculate b~i~ using linear regression. But with this amount of data that would be very costly.
+
+Instead we can just use $b_{i} = Y_{u,i} - \mu$
+
+Calculate the average rating b_i for each movie minus the overall average rating mu_rating = `r mu_rating`:
+
+```{r}
+
+movie_avgs <- edx %>% group_by(movieId) %>% summarise(b_i = mean(rating - mu_rating))
+```
+Plot them:
+
+```{r}
+
+movie_avgs %>% ggplot(aes(b_i)) + geom_histogram(bins = 10)
+```
+
+Join the movie_avg data.frame to the edx (training) and validation set:
+
+```{r}
+
+edx_movies <- edx %>% left_join(movie_avgs, by="movieId")
+validation_movies <- validation %>% left_join(movie_avgs, by="movieId")
+```
+Calculating the predicted ratings $Y_{u,i} = \mu + b_{i}$
+
+```{r}
+predicted_ratings_movies <- mu_rating + validation_movies$b_i
+```
+
+
+Calculating the new RMSE
+
+```{r}
+rmse_movies <- RMSE(predicted_ratings_movies, validation$rating)
+models <- rbind(models, c("movies", rmse_movies))
+models
+```
+
+The RMSE has improved to `r models$rmse[2]` 
 
 
