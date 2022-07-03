@@ -76,6 +76,13 @@ Different users have widely different numbers of ratings
 edx %>% count(userId) %>% ggplot(aes(x=n)) + geom_histogram() + scale_x_log10() + xlab("Ratings per user (log)")
 ```
 
+Different users have different rating means
+
+```{r}
+edx %>% group_by(userId) %>% summarise(user_mean=mean(rating)) %>% ggplot(aes(x=user_mean)) + geom_histogram()  + xlab("Average ratings per user")
+```
+
+
 Some movies are rated more often
 
 ```{r}
@@ -184,4 +191,38 @@ models
 
 The RMSE has improved to `r models$rmse[2]` 
 
+## Effect of different users
+As we saw above different users have different rating means.
+
+We can add the term b~u~ for the average rating for user u
+
+$Y_{u,i} = \mu + b_{i} + b_{u} + \epsilon_{u,i}$
+
+Calculate the average rating b_u for each movie minus the overall average rating mu_rating and b_i:
+
+```{r}
+user_avg <- edx_movies %>% group_by(userId) %>% summarise(b_u = mean(rating - mu_rating - b_i)) 
+```
+Join the user_avg data.frame to the edx_movies (training) and validation_movies set:
+
+```{r}
+edx_movies_users <- edx_movies %>% left_join(user_avg, by="userId")
+validation_movies_users <- validation_movies %>% left_join(user_avg, by="userId")
+```
+Plot the distribution of user effects b_u
+
+```{r}
+
+edx_movies_users %>% ggplot(aes(x=b_u)) + geom_histogram()
+```
+Calculating the predicted ratings $Y_{u,i} = \mu + b_{i} + b_{u}$
+
+```{r}
+
+predicted_ratings_movies_users <- mu_rating + validation_movies_users$b_i + validation_movies_users$b_u
+rmse_movies_users <- RMSE(predicted_ratings_movies_users, validation$rating)
+models <- rbind(models, c("movies users", rmse_movies_users))
+models
+```
+The RMSE has improved to `r models$rmse[3]` 
 

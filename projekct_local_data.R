@@ -38,6 +38,9 @@ grid.arrange(hist_drama, hist_comedy, hist_thriller,hist_romance, ncol = 2)
 #Different users have widely different numbers of ratings
 edx %>% count(userId) %>% ggplot(aes(x=n)) + geom_histogram() + scale_x_log10() + xlab("Ratings per user (log)")
 
+#Differet users have different rating means
+edx %>% group_by(userId) %>% summarise(user_mean=mean(rating)) %>% ggplot(aes(x=user_mean)) + geom_histogram()  + xlab("Average ratings per user")
+
 #Some movies are rated more often
 edx %>% group_by(movieId) %>% summarise(n=n()) %>% ggplot(aes(x=n)) + geom_histogram() + scale_x_log10() + xlab("Ratings per movie (log)")
 
@@ -84,3 +87,20 @@ rmse_movies <- RMSE(predicted_ratings_movies, validation$rating)
 models <- rbind(models, c("movies", rmse_movies))
 models
 
+#user effects
+
+user_avg <- edx_movies %>% group_by(userId) %>% summarise(b_u = mean(rating - mu_rating - b_i)) 
+head(user_avg)
+
+edx_movies_users <- edx_movies %>% left_join(user_avg, by="userId")
+validation_movies_users <- validation_movies %>% left_join(user_avg, by="userId")
+
+
+edx_movies_users %>% ggplot(aes(x=b_u)) + geom_histogram()
+
+predicted_ratings_movies_users <- mu_rating + validation_movies_users$b_i + validation_movies_users$b_u
+rmse_movies_users <- RMSE(predicted_ratings_movies_users, validation$rating)
+rmse_movies_users
+
+models <- rbind(models, c("movies users", rmse_movies_users))
+models
