@@ -139,3 +139,57 @@ models
 
 #Regularization
 
+test_lambdas <- function(l) {
+  movie_avgs_r <- edx %>% group_by(movieId) %>% summarise(b_i = sum(rating - mu_rating) /(n()+l))
+  edx_movies_r <- edx %>% left_join(movie_avgs_r, by="movieId")
+  validation_movies_r <- validation %>% left_join(movie_avgs_r, by="movieId")
+  
+  user_avg_r <- edx_movies_r %>% group_by(userId) %>% summarise(b_u = sum(rating - mu_rating - b_i)/(n()+l))
+  edx_movies_users_r <- edx_movies_r %>% left_join(user_avg_r, by="userId")
+  validation_movies_users_r <- validation_movies_r %>% left_join(user_avg_r, by="userId")
+  
+  year_avg_r <- edx_movies_users_r %>% group_by(year) %>% summarise(b_y = sum(rating - mu_rating - b_i - b_u)/(n()+l))
+  edx_movies_users_years_r <- edx_movies_users_r %>% left_join(year_avg_r, by="year")
+  validation_movies_users_years_r <- validation_movies_users_r %>% left_join(year_avg_r, by="year")
+  
+  genre_avg_r <- edx_movies_users_years_r %>% group_by(genres) %>% summarise(b_g = sum(rating - mu_rating - b_i - b_u - b_y)/(n()+l))
+  edx_movies_users_years_genres_r <- edx_movies_users_years_r %>% left_join(genre_avg_r, by="genres")
+  validation_movies_users_years_genres_r <- validation_movies_users_years_r %>% left_join(genre_avg_r, by="genres")
+  
+  predictions <- mu_rating + validation_movies_users_years_genres_r$b_i + validation_movies_users_years_genres_r$b_u + validation_movies_users_years_genres_r$b_y + validation_movies_users_years_genres_r$b_g
+  rmse_movies_users_years <- RMSE(predictions, validation$rating)
+  rmse_movies_users_years
+}
+
+lambdas <- seq(0,10, 1)
+rmses <- sapply(lambdas, test_lambdas)
+
+dfr <- data.frame(lambdas, rmses)
+dfr %>% ggplot(aes(x=lambdas, y=rmses)) + geom_point() + labs(x="Lambda", y="RMSE")
+
+#Final Model
+#Lambda
+l <- lambdas[which.min(rmses)]
+
+movie_avgs_r <- edx %>% group_by(movieId) %>% summarise(b_i = sum(rating - mu_rating) /(n()+l))
+edx_movies_r <- edx %>% left_join(movie_avgs_r, by="movieId")
+validation_movies_r <- validation %>% left_join(movie_avgs_r, by="movieId")
+
+user_avg_r <- edx_movies_r %>% group_by(userId) %>% summarise(b_u = sum(rating - mu_rating - b_i)/(n()+l))
+edx_movies_users_r <- edx_movies_r %>% left_join(user_avg_r, by="userId")
+validation_movies_users_r <- validation_movies_r %>% left_join(user_avg_r, by="userId")
+
+year_avg_r <- edx_movies_users_r %>% group_by(year) %>% summarise(b_y = sum(rating - mu_rating - b_i - b_u)/(n()+l))
+edx_movies_users_years_r <- edx_movies_users_r %>% left_join(year_avg_r, by="year")
+validation_movies_users_years_r <- validation_movies_users_r %>% left_join(year_avg_r, by="year")
+
+genre_avg_r <- edx_movies_users_years_r %>% group_by(genres) %>% summarise(b_g = sum(rating - mu_rating - b_i - b_u - b_y)/(n()+l))
+edx_movies_users_years_genres_r <- edx_movies_users_years_r %>% left_join(genre_avg_r, by="genres")
+validation_movies_users_years_genres_r <- validation_movies_users_years_r %>% left_join(genre_avg_r, by="genres")
+
+predictions <- mu_rating + validation_movies_users_years_genres_r$b_i + validation_movies_users_years_genres_r$b_u + validation_movies_users_years_genres_r$b_y + validation_movies_users_years_genres_r$b_g
+rmse_movies_users_years_genres_reg <- RMSE(predictions, validation$rating)
+rmse_movies_users_years_genres_reg
+
+models <- rbind(models, c("movies users years genres regular", rmse_movies_users_years_genres))
+models
