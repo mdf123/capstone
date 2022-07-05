@@ -113,12 +113,13 @@ We will use Matrix Factorization to build a model to predict movie ratings
 movie _i_
 user _u_
 year _y_
+genre _y_
 
 
 ## RMSE
 The Root Mean Square Error will be used as the Loss function
 
-RMSE = $\sqrt{\frac{1}{N}\sum_{u,i,y} (\hat{y}_{u,i,y}-y_{u,i,y})^2}$
+RMSE = $\sqrt{\frac{1}{N}\sum_{u,i,y,g} (\hat{y}_{u,i,y,g}-y_{u,i,y,g})^2}$
 ```{r}
 
 RMSE <- function(true_ratings, predicted_ratings){
@@ -231,7 +232,7 @@ The RMSE has improved to `r models$rmse[3]`
 
 We can add the term b~y~ for the average rating for movies released in year y
 
-$Y_{u,i} = \mu + b_{i} + b_{u} + b_{y} + \epsilon_{u,i}$
+$Y_{u,i,y} = \mu + b_{i} + b_{u} + b_{y} + \epsilon_{u,i}$
 
 Calculate the average rating b_u for each movie minus the overall average rating mu_rating and b_i and b_u:
 
@@ -263,3 +264,49 @@ models
 ```
 
 The RMSE has only marginally improved to `r models$rmse[4]`
+
+## Effect of the genre
+
+We can add the term b~g~ for the average rating for movies of genre g
+
+$Y_{u,i,y,g} = \mu + b_{i} + b_{u} + b_{y} + b_{g} + \epsilon_{u,i}$
+
+Calculate the average rating b_g for each movie minus the overall average rating mu_rating and b_i and b_u and b_y:
+
+```{r}
+genre_avg <- edx_movies_users_years %>% 
+  group_by(genres) %>% summarise(b_g = mean(rating - mu_rating - b_i - b_u - b_y))
+```
+
+Plot the effect of the genre b_g
+
+```{r}
+genre_avg %>% ggplot(aes(x=b_g)) + geom_histogram()
+
+```
+
+Join the genre_avg data.frame to the edx_movies_users_year (training) and validation_movies_users_year set:
+
+```{r}
+edx_movies_users_years_genres <- edx_movies_users_years %>% 
+  left_join(genre_avg, by="genres")
+validation_movies_users_years_genres <- validation_movies_users_years %>%
+  left_join(genre_avg, by="genres")
+
+```
+Calculating the predicted ratings $Y_{u,i} = \mu + b_{i} + b_{u} + b_{y} +b_{g}$
+and the RMSE
+
+```{r}
+predicted_ratings_movies_users_years_genres <- mu_rating + validation_movies_users_years_genres$b_i + validation_movies_users_years_genres$b_u  + validation_movies_users_years_genres$b_y +  + validation_movies_users_years_genres$b_g
+rmse_movies_users_years_genres <- RMSE(predicted_ratings_movies_users_years_genres, validation$rating)
+
+```
+
+This model has improved the RMS to `r rmse_movies_users_years_genres`
+
+```{r}
+models <- rbind(models, c("movies users years genres", rmse_movies_users_years_genres))
+models
+```
+

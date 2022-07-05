@@ -2,7 +2,7 @@ rm(list=ls())
 library(tidyverse)
 library(caret)
 library(gridExtra)
-options(digits=3)
+
 
 load(file="data/edx")
 load(file="data/validation")
@@ -120,3 +120,22 @@ rmse_movies_users_years
 
 models <- rbind(models, c("movies users years", rmse_movies_users_years))
 models
+
+#genre effect
+
+head(edx_movies_users_years)
+genre_avg <- edx_movies_users_years %>% group_by(genres) %>% summarise(b_g = mean(rating - mu_rating - b_i - b_u - b_y))
+genre_avg %>% ggplot(aes(x=b_g)) + geom_histogram()
+
+edx_movies_users_years_genres <- edx_movies_users_years %>% left_join(genre_avg, by="genres")
+validation_movies_users_years_genres <- validation_movies_users_years %>% left_join(genre_avg, by="genres")
+
+predicted_ratings_movies_users_years_genres <- mu_rating + validation_movies_users_years_genres$b_i + validation_movies_users_years_genres$b_u  + validation_movies_users_years_genres$b_y +  + validation_movies_users_years_genres$b_g
+rmse_movies_users_years_genres <- RMSE(predicted_ratings_movies_users_years_genres, validation$rating)
+rmse_movies_users_years
+
+models <- rbind(models, c("movies users years genres", rmse_movies_users_years_genres))
+models
+
+#Regularization
+
