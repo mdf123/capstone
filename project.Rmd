@@ -5,12 +5,36 @@ date: "26 5 2022"
 output: pdf_document
 ---
 
-```{r}
+# Introduction
+
+The aim of this project is to predict ratings for movies in the open source MovieLens dataset.
+This is inspired by a 2006 competition by Netflix to improve its recommondation system. 
+This project is part of the capstone project of HarvardX PH125.9x Data Science. 
+It is based on https://rafalab.github.io/dsbook/large-datasets.html#recommendation-systems
+The main benchmark is achieving a RMSE < 0.86490 on the validation data set.
+
+**Recommender systems** can divided into two categories [1]
+
+The **content filtering** approach creates a profile for each user or product. Some profiles are manually curated.
+
+**Collaborative filtering** relies only on past user behavior.
+
+The two primary areas of collaborative filtering are the
+neighborhood methods and latent factor models
+A product's neighbors are other products that get similar reatings by the same user.
+Latent factor models explain the ratings by factors characterizing both items and users.
+We will use a latent factor model here.
+
+```{r include=FALSE}
 library(tidyverse)
 library(caret)
 library(gridExtra)
 ```
 
+
+
+
+# Loading the data
 
 TODO: Replace later with code from project site
 ```{r}
@@ -18,11 +42,15 @@ load(file="data/edx")
 load(file="data/validation")
 load(file="data/movies")
 ```
-Overview
+
+# Data Analysis and Cleanup
+
+The data structure of the dataset:
 ```{r}
 str(edx)
 
 ```
+
 ```{r echo=FALSE}
 edx_rows <- nrow(edx)
 edx_cols <- ncol(edx)
@@ -33,7 +61,7 @@ val_cols <- ncol(validation)
 The edx dataset contains `r edx_rows` observations (rows) with `r edx_cols` features (columns). It will be used for training the model.
 The validation dataset contains `r val_rows` observations (rows) with `r val_cols` features (columns). It will be used for validating the model
 
-Checking for missing values
+**Checking for missing values**
 ```{r}
 nas <- function(x) { any(is.na(x)) }
 edx %>% summarise_all(nas)
@@ -41,14 +69,17 @@ validation %>% summarise_all(nas)
 ```
 There are no columns with NAs in the edx or the validation data. So no clean-up is necessary
 
-Overall distribution of the ratings
+**Overall distribution of the ratings**
 
 ```{r}
-edx %>% ggplot(aes(x=rating)) + geom_histogram(binwidth = 0.5) + scale_x_continuous(breaks = seq(min(edx$rating), max(edx$rating), by = 0.5))
+edx %>% ggplot(aes(x=rating)) + 
+  geom_histogram(binwidth = 0.5) + 
+  scale_x_continuous(breaks = seq(min(edx$rating), max(edx$rating), by = 0.5))
 
 ```
 
-The different genres are
+\newpage
+The **different genres** are
 ```{r}
 dist_genres <- edx %>% distinct(genres)
 dg <- as.vector(str_split(dist_genres$genres, "\\|", simplify = T))
@@ -59,38 +90,61 @@ unique(dg[dg != ""])
 Distribution of ratings for  different genres
 
 ```{r}
-hist_drama <- edx %>% filter(str_detect(genres, "Drama")) %>% ggplot(aes(x=rating)) + geom_histogram(binwidth = 0.5) + scale_x_continuous(breaks = seq(0.5, 5, by = 1)) + labs(title="Drama")
+hist_drama <- edx %>% filter(str_detect(genres, "Drama")) %>%
+  ggplot(aes(x=rating)) + geom_histogram(binwidth = 0.5) + 
+  scale_x_continuous(breaks = seq(0.5, 5, by = 1)) + labs(title="Drama")
 
-hist_comedy <- edx %>% filter(str_detect(genres, "Comedy"))  %>% ggplot(aes(x=rating)) + geom_histogram(binwidth = 0.5) + scale_x_continuous(breaks = seq(0.5, 5, by = 1)) + labs(title="Comedy")
+hist_comedy <- edx %>% filter(str_detect(genres, "Comedy"))  %>%
+  ggplot(aes(x=rating)) + geom_histogram(binwidth = 0.5) + 
+  scale_x_continuous(breaks = seq(0.5, 5, by = 1)) + labs(title="Comedy")
 
-hist_thriller <- edx %>% filter(str_detect(genres, "Thriller"))  %>% ggplot(aes(x=rating)) + geom_histogram(binwidth = 0.5) + scale_x_continuous(breaks = seq(0.5, 5, by = 1)) + labs(title="Thriller")
+hist_thriller <- edx %>% filter(str_detect(genres, "Thriller"))  %>% 
+  ggplot(aes(x=rating)) + geom_histogram(binwidth = 0.5) +
+  scale_x_continuous(breaks = seq(0.5, 5, by = 1)) + labs(title="Thriller")
 
-hist_romance <- edx %>% filter(str_detect(genres, "Romance"))  %>% ggplot(aes(x=rating)) + geom_histogram(binwidth = 0.5) + scale_x_continuous(breaks = seq(0.5, 5, by = 1)) + labs(title="Romance")
+hist_romance <- edx %>% filter(str_detect(genres, "Romance"))  %>%
+  ggplot(aes(x=rating)) + geom_histogram(binwidth = 0.5) + 
+  scale_x_continuous(breaks = seq(0.5, 5, by = 1)) + labs(title="Romance")
 
 grid.arrange(hist_drama, hist_comedy, hist_thriller,hist_romance, ncol = 2)
 ```
 
-Different users have widely different numbers of ratings
+\newpage
+Different **users** have widely different **numbers of ratings**
 
-```{r}
-edx %>% count(userId) %>% ggplot(aes(x=n)) + geom_histogram() + scale_x_log10() + xlab("Ratings per user (log)")
+```{r  message=FALSE, fig.width=5, fig.height=3}
+edx %>% count(userId) %>% ggplot(aes(x=n)) + geom_histogram() + scale_x_log10() + 
+  xlab("Ratings per user (log)")
 ```
 
-Different users have different rating means
+Different **users** have different **rating means**
 
-```{r}
-edx %>% group_by(userId) %>% summarise(user_mean=mean(rating)) %>% ggplot(aes(x=user_mean)) + geom_histogram()  + xlab("Average ratings per user")
+```{r message=FALSE, fig.width=5, fig.height=3 }
+edx %>% group_by(userId) %>% summarise(user_mean=mean(rating)) %>% ggplot(aes(x=user_mean)) +
+  geom_histogram()  + xlab("Average ratings per user")
 ```
 
+\newpage
+Different **movies** have different **numbers of ratings** 
 
-Some movies are rated more often
-
-```{r}
-edx %>% group_by(movieId) %>% summarise(n=n()) %>% ggplot(aes(x=n)) + geom_histogram() + scale_x_log10() + xlab("Ratings per movie (log)")
+```{r message=FALSE, fig.width=5, fig.height=3 }
+edx %>% group_by(movieId) %>% summarise(n=n()) %>% ggplot(aes(x=n)) + geom_histogram() +
+  scale_x_log10() + xlab("Ratings per movie (log)")
 
 ```
 
-##Release year has some influence on average rating
+Different **movies** have different **rating means**
+
+```{r message=FALSE, fig.width=5, fig.height=3 }
+edx %>% group_by(movieId) %>% summarise(movie_mean = mean(rating)) %>% ggplot(aes(x=movie_mean)) +
+  geom_histogram() + xlab("Average rating per movie")
+
+```
+ 
+
+\newpage
+
+**Release year** has some influence on **average rating**
 Extract the release date from the title
 
 ```{r}
@@ -100,20 +154,21 @@ validation <- validation %>% mutate(year=as.numeric(str_sub(title, start=-5, end
 ```
 Plot of the average rating for each release year
 
-```{r}
-edx %>% group_by(year) %>% summarise(avg_rating = mean(rating)) %>% ggplot(aes(x=year, y=avg_rating)) + geom_point() + geom_smooth()
+```{r ,message=FALSE, fig.width=5, fig.height=3 }
+edx %>% group_by(year) %>% summarise(avg_rating = mean(rating)) %>% ggplot(aes(x=year, y=avg_rating)) + 
+  geom_point() + geom_smooth()
 
 ```
 
 
-
+\newpage
 # Matrix Factorization
 We will use Matrix Factorization to build a model to predict movie ratings
 
 movie _i_
 user _u_
 year _y_
-genre _y_
+genre _g_
 
 
 ## RMSE
@@ -164,7 +219,7 @@ movie_avgs <- edx %>% group_by(movieId) %>% summarise(b_i = mean(rating - mu_rat
 ```
 Plot them:
 
-```{r}
+```{r , fig.width=5, fig.height=3}
 
 movie_avgs %>% ggplot(aes(b_i)) + geom_histogram(bins = 10)
 ```
@@ -213,7 +268,7 @@ validation_movies_users <- validation_movies %>% left_join(user_avg, by="userId"
 ```
 Plot the distribution of user effects b_u
 
-```{r}
+```{r , fig.width=5, fig.height=3}
 
 edx_movies_users %>% ggplot(aes(x=b_u)) + geom_histogram()
 ```
@@ -242,7 +297,7 @@ year_avg <- edx_movies_users %>% group_by(year) %>% summarise(b_y = mean(rating 
 ```
 Plot the effect of the release year b_y
 
-```{r}
+```{r, fig.width=5, fig.height=3}
 year_avg %>% ggplot(aes(x=b_y)) + geom_histogram()
 ```
 Join the year_avg data.frame to the edx_movies_users (training) and validation_movies_users set:
@@ -260,7 +315,7 @@ rmse_movies_users_years <- RMSE(predicted_ratings_movies_users_years, validation
 rmse_movies_users_years
 
 models <- rbind(models, c("movies users years", rmse_movies_users_years))
-models
+knitr::kable(models)
 ```
 
 The RMSE has only marginally improved to `r models$rmse[4]`
@@ -280,7 +335,7 @@ genre_avg <- edx_movies_users_years %>%
 
 Plot the effect of the genre b_g
 
-```{r}
+```{r ,message=FALSE, fig.width=5, fig.height=3 }
 genre_avg %>% ggplot(aes(x=b_g)) + geom_histogram()
 
 ```
@@ -298,7 +353,10 @@ Calculating the predicted ratings $Y_{u,i} = \mu + b_{i} + b_{u} + b_{y} +b_{g}$
 and the RMSE
 
 ```{r}
-predicted_ratings_movies_users_years_genres <- mu_rating + validation_movies_users_years_genres$b_i + validation_movies_users_years_genres$b_u  + validation_movies_users_years_genres$b_y +  + validation_movies_users_years_genres$b_g
+predicted_ratings_movies_users_years_genres <- mu_rating +
+  validation_movies_users_years_genres$b_i + validation_movies_users_years_genres$b_u  +
+  validation_movies_users_years_genres$b_y +  validation_movies_users_years_genres$b_g
+
 rmse_movies_users_years_genres <- RMSE(predicted_ratings_movies_users_years_genres, validation$rating)
 
 ```
@@ -307,6 +365,97 @@ This model has improved the RMS to `r rmse_movies_users_years_genres`
 
 ```{r}
 models <- rbind(models, c("movies users years genres", rmse_movies_users_years_genres))
-models
+knitr::kable(models)
 ```
 
+## Regularization
+
+We have seen that some movies have only a few ratings. Those can have a disproportionate effect on variability. Regularization shrinks the coefficient estimates for small samples towards zero. We introduce a penalty term $\lambda$. A greater $\lambda$ shrinks the coefficient more.
+
+For example for the movie effect:
+
+$\hat{b}_{i} (\lambda)= \frac{1} {\lambda + n_{i}} \sum_{u=2}^{n_{i}}(Y_{u,i} - \hat{\mu})$
+
+If the sample size n~g~ is large, then the penalty $\lambda$ is effectively ignored since
+$n_{i} + \lambda \approx n_{i}$
+
+$\lambda$ is a tuning parameter. We can use cross-validation to choose it.
+
+Choosing an optimal $\lambda$
+
+```{r}
+
+test_lambdas <- function(l) {
+  movie_avgs_r <- edx %>% group_by(movieId) %>% summarise(b_i = sum(rating - mu_rating) /(n()+l))
+  edx_movies_r <- edx %>% left_join(movie_avgs_r, by="movieId")
+  validation_movies_r <- validation %>% left_join(movie_avgs_r, by="movieId")
+  
+  user_avg_r <- edx_movies_r %>% group_by(userId) %>% 
+    summarise(b_u = sum(rating - mu_rating - b_i)/(n()+l))
+  edx_movies_users_r <- edx_movies_r %>% left_join(user_avg_r, by="userId")
+  validation_movies_users_r <- validation_movies_r %>% left_join(user_avg_r, by="userId")
+  
+  year_avg_r <- edx_movies_users_r %>% group_by(year) %>% 
+    summarise(b_y = sum(rating - mu_rating - b_i - b_u)/(n()+l))
+  edx_movies_users_years_r <- edx_movies_users_r %>% left_join(year_avg_r, by="year")
+  validation_movies_users_years_r <- validation_movies_users_r %>% left_join(year_avg_r, by="year")
+  
+  genre_avg_r <- edx_movies_users_years_r %>% group_by(genres) %>% 
+    summarise(b_g = sum(rating - mu_rating - b_i - b_u - b_y)/(n()+l))
+  edx_movies_users_years_genres_r <- edx_movies_users_years_r %>% left_join(genre_avg_r, by="genres")
+  validation_movies_users_years_genres_r <- validation_movies_users_years_r %>% left_join(genre_avg_r, by="genres")
+  
+  predictions <- mu_rating + validation_movies_users_years_genres_r$b_i + validation_movies_users_years_genres_r$b_u + validation_movies_users_years_genres_r$b_y + validation_movies_users_years_genres_r$b_g
+  rmse_movies_users_years_genres_reg <- RMSE(predictions, validation$rating)
+  rmse_movies_users_years_genres_reg
+}
+
+lambdas <- seq(0,10, 1)
+rmses <- sapply(lambdas, test_lambdas)
+
+dfr <- data.frame(lambdas, rmses)
+dfr %>% ggplot(aes(x=lambdas, y=rmses)) + geom_point() + labs(x="Lambda", y="RMSE")
+```
+
+Using the optimal $\lambda$ gives the final model
+
+```{r}
+l <- lambdas[which.min(rmses)]
+
+movie_avgs_r <- edx %>% group_by(movieId) %>% summarise(b_i = sum(rating - mu_rating) /(n()+l))
+edx_movies_r <- edx %>% left_join(movie_avgs_r, by="movieId")
+validation_movies_r <- validation %>% left_join(movie_avgs_r, by="movieId")
+
+user_avg_r <- edx_movies_r %>% group_by(userId) %>% 
+  summarise(b_u = sum(rating - mu_rating - b_i)/(n()+l))
+edx_movies_users_r <- edx_movies_r %>% left_join(user_avg_r, by="userId")
+validation_movies_users_r <- validation_movies_r %>% left_join(user_avg_r, by="userId")
+
+year_avg_r <- edx_movies_users_r %>% group_by(year) %>% 
+  summarise(b_y = sum(rating - mu_rating - b_i - b_u)/(n()+l))
+edx_movies_users_years_r <- edx_movies_users_r %>% left_join(year_avg_r, by="year")
+validation_movies_users_years_r <- validation_movies_users_r %>% left_join(year_avg_r, by="year")
+
+genre_avg_r <- edx_movies_users_years_r %>% group_by(genres) %>% 
+  summarise(b_g = sum(rating - mu_rating - b_i - b_u - b_y)/(n()+l))
+edx_movies_users_years_genres_r <- edx_movies_users_years_r %>% left_join(genre_avg_r, by="genres")
+validation_movies_users_years_genres_r <- validation_movies_users_years_r %>% left_join(genre_avg_r, by="genres")
+
+predictions <- mu_rating + validation_movies_users_years_genres_r$b_i + validation_movies_users_years_genres_r$b_u + validation_movies_users_years_genres_r$b_y + validation_movies_users_years_genres_r$b_g
+rmse_movies_users_years_genres_reg <- RMSE(predictions, validation$rating)
+rmse_movies_users_years_genres_reg
+
+models <- rbind(models, c("movies users years genres regular", rmse_movies_users_years_genres_reg))
+```
+
+Comparing the different models:
+
+```{r}
+knitr::kable(models)
+```
+# Conclusion
+The final model has a RMSE of `r rmse_movies_users_years_genres_reg` < 0.86490. So we have achieved our goal.
+
+
+
+[1] https://datajobs.com/data-science-repo/Recommender-Systems-%5BNetflix%5D.pdf

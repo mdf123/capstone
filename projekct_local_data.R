@@ -44,6 +44,9 @@ edx %>% group_by(userId) %>% summarise(user_mean=mean(rating)) %>% ggplot(aes(x=
 #Some movies are rated more often
 edx %>% group_by(movieId) %>% summarise(n=n()) %>% ggplot(aes(x=n)) + geom_histogram() + scale_x_log10() + xlab("Ratings per movie (log)")
 
+#Average rating per movie
+edx %>% group_by(movieId) %>% summarise(movie_mean = mean(rating)) %>% ggplot(aes(x=movie_mean)) + geom_histogram() + xlab("Average rating per movie")
+
 edx %>% head(3)
 #Add release Year
 release_year_edx <- as.numeric(str_sub(edx$title, start=-5, end=-2))

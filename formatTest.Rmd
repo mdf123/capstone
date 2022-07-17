@@ -24,6 +24,15 @@ $\hat{Y}$
 Inline Mathematics $\sum_{n=1}^{10} n^2$  
 Formula $$\sum_{n=1}^{10} n^2$$
 
+$\lambda$
+
+
 $\sqrt{x}$
 
+$n_{i} + \lambda \approx n_{i}$
+
 $\sqrt{\frac{1}{N}\sum_{u,i} (\hat{y}_{u,i}-y_{u,i})^2}$
+
+$\frac{1}{N}$
+
+$\hat{b}_{i} (\lambda)= \frac{1} {\lambda + n_{i}} \sum_{u=2}^{n_{i}}(Y_{u,i} - \hat{\mu})$
