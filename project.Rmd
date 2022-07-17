@@ -145,6 +145,7 @@ edx %>% group_by(movieId) %>% summarise(movie_mean = mean(rating)) %>% ggplot(ae
 \newpage
 
 **Release year** has some influence on **average rating**
+
 Extract the release date from the title
 
 ```{r}
@@ -155,7 +156,8 @@ validation <- validation %>% mutate(year=as.numeric(str_sub(title, start=-5, end
 Plot of the average rating for each release year
 
 ```{r ,message=FALSE, fig.width=5, fig.height=3 }
-edx %>% group_by(year) %>% summarise(avg_rating = mean(rating)) %>% ggplot(aes(x=year, y=avg_rating)) + 
+edx %>% group_by(year) %>% summarise(avg_rating = mean(rating)) %>%
+  ggplot(aes(x=year, y=avg_rating)) + 
   geom_point() + geom_smooth()
 
 ```
@@ -219,7 +221,7 @@ movie_avgs <- edx %>% group_by(movieId) %>% summarise(b_i = mean(rating - mu_rat
 ```
 Plot them:
 
-```{r , fig.width=5, fig.height=3}
+```{r ,message=FALSE, fig.width=5, fig.height=3}
 
 movie_avgs %>% ggplot(aes(b_i)) + geom_histogram(bins = 10)
 ```
@@ -260,18 +262,21 @@ Calculate the average rating b_u for each movie minus the overall average rating
 ```{r}
 user_avg <- edx_movies %>% group_by(userId) %>% summarise(b_u = mean(rating - mu_rating - b_i)) 
 ```
+
 Join the user_avg data.frame to the edx_movies (training) and validation_movies set:
 
 ```{r}
 edx_movies_users <- edx_movies %>% left_join(user_avg, by="userId")
 validation_movies_users <- validation_movies %>% left_join(user_avg, by="userId")
 ```
+
 Plot the distribution of user effects b_u
 
-```{r , fig.width=5, fig.height=3}
+```{r ,message=FALSE, fig.width=5, fig.height=3}
 
 edx_movies_users %>% ggplot(aes(x=b_u)) + geom_histogram()
 ```
+
 Calculating the predicted ratings $Y_{u,i} = \mu + b_{i} + b_{u}$
 
 ```{r}
@@ -281,6 +286,7 @@ rmse_movies_users <- RMSE(predicted_ratings_movies_users, validation$rating)
 models <- rbind(models, c("movies users", rmse_movies_users))
 models
 ```
+
 The RMSE has improved to `r models$rmse[3]` 
 
 ## Effect of the release year
@@ -295,17 +301,20 @@ Calculate the average rating b_u for each movie minus the overall average rating
 year_avg <- edx_movies_users %>% group_by(year) %>% summarise(b_y = mean(rating - mu_rating - b_i - b_u))
 
 ```
+
 Plot the effect of the release year b_y
 
 ```{r, fig.width=5, fig.height=3}
 year_avg %>% ggplot(aes(x=b_y)) + geom_histogram()
 ```
+
 Join the year_avg data.frame to the edx_movies_users (training) and validation_movies_users set:
 
 ```{r}
 edx_movies_users_years <- edx_movies_users %>% left_join(year_avg, by="year")
 validation_movies_users_years <- validation_movies_users %>% left_join(year_avg, by="year")
 ```
+
 Calculating the predicted ratings $Y_{u,i} = \mu + b_{i} + b_{u} + b_{y}$
 
 ```{r}
@@ -349,6 +358,7 @@ validation_movies_users_years_genres <- validation_movies_users_years %>%
   left_join(genre_avg, by="genres")
 
 ```
+
 Calculating the predicted ratings $Y_{u,i} = \mu + b_{i} + b_{u} + b_{y} +b_{g}$
 and the RMSE
 
@@ -398,14 +408,20 @@ test_lambdas <- function(l) {
   year_avg_r <- edx_movies_users_r %>% group_by(year) %>% 
     summarise(b_y = sum(rating - mu_rating - b_i - b_u)/(n()+l))
   edx_movies_users_years_r <- edx_movies_users_r %>% left_join(year_avg_r, by="year")
-  validation_movies_users_years_r <- validation_movies_users_r %>% left_join(year_avg_r, by="year")
+  validation_movies_users_years_r <- validation_movies_users_r %>% 
+    left_join(year_avg_r, by="year")
   
   genre_avg_r <- edx_movies_users_years_r %>% group_by(genres) %>% 
     summarise(b_g = sum(rating - mu_rating - b_i - b_u - b_y)/(n()+l))
-  edx_movies_users_years_genres_r <- edx_movies_users_years_r %>% left_join(genre_avg_r, by="genres")
-  validation_movies_users_years_genres_r <- validation_movies_users_years_r %>% left_join(genre_avg_r, by="genres")
+  edx_movies_users_years_genres_r <- edx_movies_users_years_r %>% 
+    left_join(genre_avg_r, by="genres")
+  validation_movies_users_years_genres_r <- validation_movies_users_years_r %>%
+    left_join(genre_avg_r, by="genres")
   
-  predictions <- mu_rating + validation_movies_users_years_genres_r$b_i + validation_movies_users_years_genres_r$b_u + validation_movies_users_years_genres_r$b_y + validation_movies_users_years_genres_r$b_g
+  predictions <- mu_rating + validation_movies_users_years_genres_r$b_i +
+    validation_movies_users_years_genres_r$b_u +
+    validation_movies_users_years_genres_r$b_y +
+    validation_movies_users_years_genres_r$b_g
   rmse_movies_users_years_genres_reg <- RMSE(predictions, validation$rating)
   rmse_movies_users_years_genres_reg
 }
@@ -433,15 +449,21 @@ validation_movies_users_r <- validation_movies_r %>% left_join(user_avg_r, by="u
 
 year_avg_r <- edx_movies_users_r %>% group_by(year) %>% 
   summarise(b_y = sum(rating - mu_rating - b_i - b_u)/(n()+l))
-edx_movies_users_years_r <- edx_movies_users_r %>% left_join(year_avg_r, by="year")
+edx_movies_users_years_r <- edx_movies_users_r %>% 
+  left_join(year_avg_r, by="year")
 validation_movies_users_years_r <- validation_movies_users_r %>% left_join(year_avg_r, by="year")
 
 genre_avg_r <- edx_movies_users_years_r %>% group_by(genres) %>% 
   summarise(b_g = sum(rating - mu_rating - b_i - b_u - b_y)/(n()+l))
-edx_movies_users_years_genres_r <- edx_movies_users_years_r %>% left_join(genre_avg_r, by="genres")
-validation_movies_users_years_genres_r <- validation_movies_users_years_r %>% left_join(genre_avg_r, by="genres")
+edx_movies_users_years_genres_r <- edx_movies_users_years_r %>% 
+  left_join(genre_avg_r, by="genres")
+validation_movies_users_years_genres_r <- validation_movies_users_years_r %>%
+  left_join(genre_avg_r, by="genres")
 
-predictions <- mu_rating + validation_movies_users_years_genres_r$b_i + validation_movies_users_years_genres_r$b_u + validation_movies_users_years_genres_r$b_y + validation_movies_users_years_genres_r$b_g
+predictions <- mu_rating + validation_movies_users_years_genres_r$b_i +
+  validation_movies_users_years_genres_r$b_u +
+  validation_movies_users_years_genres_r$b_y + 
+  validation_movies_users_years_genres_r$b_g
 rmse_movies_users_years_genres_reg <- RMSE(predictions, validation$rating)
 rmse_movies_users_years_genres_reg
 
