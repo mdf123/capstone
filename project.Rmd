@@ -26,9 +26,11 @@ Latent factor models explain the ratings by factors characterizing both items an
 We will use a latent factor model here.
 
 ```{r include=FALSE}
+rm(list=ls())
 library(tidyverse)
 library(caret)
 library(gridExtra)
+library(data.table)
 ```
 
 
@@ -36,11 +38,45 @@ library(gridExtra)
 
 # Loading the data
 
-TODO: Replace later with code from project site
 ```{r}
-load(file="data/edx")
-load(file="data/validation")
-load(file="data/movies")
+# MovieLens 10M dataset:
+# https://grouplens.org/datasets/movielens/10m/
+# http://files.grouplens.org/datasets/movielens/ml-10m.zip
+
+dl <- tempfile()
+download.file("https://files.grouplens.org/datasets/movielens/ml-10m.zip", dl)
+
+ratings <- fread(text = gsub("::", "\t", readLines(unzip(dl, "ml-10M100K/ratings.dat"))),
+                 col.names = c("userId", "movieId", "rating", "timestamp"))
+
+movies <- str_split_fixed(readLines(unzip(dl, "ml-10M100K/movies.dat")), "\\::", 3)
+colnames(movies) <- c("movieId", "title", "genres")
+
+
+# if using R 4.0 or later:
+movies <- as.data.frame(movies) %>% mutate(movieId = as.numeric(movieId),
+                                           title = as.character(title),
+                                           genres = as.character(genres))
+
+
+movielens <- left_join(ratings, movies, by = "movieId")
+
+# Validation set will be 10% of MovieLens data
+set.seed(1, sample.kind="Rounding") # if using R 3.5 or earlier, use `set.seed(1)`
+test_index <- createDataPartition(y = movielens$rating, times = 1, p = 0.1, list = FALSE)
+edx <- movielens[-test_index,]
+temp <- movielens[test_index,]
+
+# Make sure userId and movieId in validation set are also in edx set
+validation <- temp %>% 
+  semi_join(edx, by = "movieId") %>%
+  semi_join(edx, by = "userId")
+
+# Add rows removed from validation set back into edx set
+removed <- anti_join(temp, validation)
+edx <- rbind(edx, removed)
+
+rm(dl, ratings, movies, test_index, temp, movielens, removed)
 ```
 
 # Data Analysis and Cleanup
@@ -245,8 +281,9 @@ Calculating the new RMSE
 ```{r}
 rmse_movies <- RMSE(predicted_ratings_movies, validation$rating)
 models <- rbind(models, c("movies", rmse_movies))
-models
+knitr::kable(models)
 ```
+
 
 The RMSE has improved to `r models$rmse[2]` 
 
@@ -281,10 +318,11 @@ Calculating the predicted ratings $Y_{u,i} = \mu + b_{i} + b_{u}$
 
 ```{r}
 
-predicted_ratings_movies_users <- mu_rating + validation_movies_users$b_i + validation_movies_users$b_u
+predicted_ratings_movies_users <- mu_rating + validation_movies_users$b_i +
+  validation_movies_users$b_u
 rmse_movies_users <- RMSE(predicted_ratings_movies_users, validation$rating)
 models <- rbind(models, c("movies users", rmse_movies_users))
-models
+knitr::kable(models)
 ```
 
 The RMSE has improved to `r models$rmse[3]` 
@@ -295,10 +333,11 @@ We can add the term b~y~ for the average rating for movies released in year y
 
 $Y_{u,i,y} = \mu + b_{i} + b_{u} + b_{y} + \epsilon_{u,i}$
 
-Calculate the average rating b_u for each movie minus the overall average rating mu_rating and b_i and b_u:
+Calculate the average rating b_y for each movie minus the overall average rating mu_rating and b_i and b_u:
 
 ```{r}
-year_avg <- edx_movies_users %>% group_by(year) %>% summarise(b_y = mean(rating - mu_rating - b_i - b_u))
+year_avg <- edx_movies_users %>% group_by(year) %>% 
+  summarise(b_y = mean(rating - mu_rating - b_i - b_u))
 
 ```
 
@@ -318,7 +357,9 @@ validation_movies_users_years <- validation_movies_users %>% left_join(year_avg,
 Calculating the predicted ratings $Y_{u,i} = \mu + b_{i} + b_{u} + b_{y}$
 
 ```{r}
-predicted_ratings_movies_users_years <- mu_rating + validation_movies_users_years$b_i + validation_movies_users_years$b_u + validation_movies_users_years$b_y
+predicted_ratings_movies_users_years <- mu_rating + 
+  validation_movies_users_years$b_i + validation_movies_users_years$b_u +
+  validation_movies_users_years$b_y
 
 rmse_movies_users_years <- RMSE(predicted_ratings_movies_users_years, validation$rating)
 rmse_movies_users_years
@@ -386,7 +427,7 @@ For example for the movie effect:
 
 $\hat{b}_{i} (\lambda)= \frac{1} {\lambda + n_{i}} \sum_{u=2}^{n_{i}}(Y_{u,i} - \hat{\mu})$
 
-If the sample size n~g~ is large, then the penalty $\lambda$ is effectively ignored since
+If the sample size n~i~ is large, then the penalty $\lambda$ is effectively ignored since
 $n_{i} + \lambda \approx n_{i}$
 
 $\lambda$ is a tuning parameter. We can use cross-validation to choose it.
